@@ -5,6 +5,8 @@ Description: Extends WooCommerce coupons to support "Guest Shipping" address at 
 Version: 1.0.0
 Author: Radley Sustaire
 Author URI: https://radleysustaire.com
+GitHub Plugin URI: https://github.com/RadGH/RS-WooCommerce-Guest-Shipping-Coupons
+Primary Branch: main
 */
 
 // If this file is called directly, abort.
