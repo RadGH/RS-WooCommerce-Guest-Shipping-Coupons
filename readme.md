@@ -15,6 +15,11 @@ This plugin extends WooCommerce coupons to support "Guest Shipping" address at c
 
 ![Screenshot of the coupon settings page showing the Guest Shipping section](screenshot.png)
 
+## Changelog
+
+### 1.0.1
+* Added shipping address to order receipt page and emails
+
 ### 1.0.0
 
 * Initial release
