@@ -2,7 +2,7 @@
 /*
 Plugin Name: RS WooCommerce Guest Shipping Coupons
 Description: Extends WooCommerce coupons to support "Guest Shipping" address at checkout. Useful for promotions that require a separate shipping address.
-Version: 1.0.0
+Version: 1.0.1
 Author: Radley Sustaire
 Author URI: https://radleysustaire.com
 GitHub Plugin URI: https://github.com/RadGH/RS-WooCommerce-Guest-Shipping-Coupons
@@ -23,7 +23,7 @@ class RS_WC_Guest_Shipping_Coupons_Plugin {
 	public function __construct() {
 		
 		self::$name = 'RS WooCommerce Guest Shipping Coupons';
-		self::$version = '1.0.0';
+		self::$version = '1.0.1';
 		self::$path = __DIR__;
 		self::$url = untrailingslashit(plugin_dir_url(__FILE__));
 		

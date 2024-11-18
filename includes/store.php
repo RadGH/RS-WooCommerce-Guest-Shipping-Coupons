@@ -34,6 +34,13 @@ class RS_WC_Guest_Shipping_Coupons_Store {
 		// Display the guest address fields on the order edit screen
 		add_action( 'woocommerce_admin_order_data_after_shipping_address', array( $this, 'display_order_guest_shipping_fields' ) );
 		
+		// Display the guest address on the receipt, emails, and other areas, below the product title
+		// 1. Website
+		add_action( 'woocommerce_order_details_before_order_table', array( $this, 'display_order_guest_shipping_fields_on_product_receipt' ), 20 );
+		// 2. Email
+		add_action( 'woocommerce_email_before_order_table', array( $this, 'display_order_guest_shipping_fields_on_product_receipt' ), 20 );
+		
+		
 	}
 	
 	// Get the instance of this class
@@ -47,6 +54,23 @@ class RS_WC_Guest_Shipping_Coupons_Store {
 	
 	
 	// Utilities
+	/**
+	 * Get the guest shipping address fields
+	 * @return null[]
+	 */
+	public function get_shipping_field_keys() {
+		return array(
+			'first_name',
+			'last_name',
+			'company',
+			'country',
+			'address_1',
+			'address_2',
+			'city',
+			'state',
+			'postcode',
+		);
+	}
 	
 	/**
 	 * Get the guest shipping coupon from an order
@@ -183,6 +207,94 @@ class RS_WC_Guest_Shipping_Coupons_Store {
 		return $data;
 	}
 	
+	/**
+	 * Gets the guest shipping address fields from an order that was submitted.
+	 * Returns false if not applicable to the order (coupon not applied)
+	 *
+	 * @param WC_Order|int $order
+	 *
+	 * @return array|false
+	 */
+	public function get_guest_shipping_address_from_order( $order ) {
+		// Get the order
+		if ( is_numeric($order) ) $order = wc_get_order( $order );
+		if ( ! $order ) return false;
+		
+		// Get the guest shipping coupon
+		$coupon = $this->get_guest_shipping_coupon_from_order( $order );
+		if ( ! $coupon ) return false;
+		
+		// Get the guest address fields
+		$address = array();
+		
+		// Loop through the fields to get values
+		foreach ( $this->get_shipping_field_keys() as $key ) {
+			$address[$key] = get_post_meta( $order->get_id(), '_guest_address_' . $key, true );
+		}
+		
+		return $address;
+	}
+	
+	
+	
+	/**
+	 * Displays the shipping address in a simplified format
+	 *
+	 * @param $order
+	 * @param $address
+	 *
+	 * @return false|void
+	 */
+	public function display_shipping_address_simplified( $order, $address = null ) {
+		if ( $address === null ) {
+			$address = $this->get_guest_shipping_address_from_order( $order );
+		}
+		
+		if ( ! $address ) return false;
+		
+		if ( $address['first_name'] || $address['last_name'] ) {
+			echo '<p class="guest-shipping--name">';
+			echo '<strong>Name:</strong> <br>';
+			echo esc_html( trim( $address['first_name'] . ' ' . $address['last_name'] ) );
+			echo '</p>';
+		}
+		
+		if ( $address['company'] ) {
+			echo '<p class="guest-shipping--company">';
+			echo '<strong>Company:</strong> <br>';
+			echo esc_html( $address['company'] );
+			echo '</p>';
+		}
+		
+		if ( $address['address_1'] || $address['address_2'] || $address['state'] || $address['city'] || $address['postcode'] ) {
+			$rows = array();
+			if ( $address['address_1'] ) {
+				$rows[] = $address['address_1'];
+			}
+			if ( $address['address_2'] ) {
+				$rows[] = $address['address_2'];
+			}
+			if ( $address['city'] || $address['state'] || $address['postcode'] ) {
+				$city_state_postcode = array();
+				if ( $address['city'] ) {
+					$city_state_postcode[] = $address['city'];
+				}
+				if ( $address['state'] ) {
+					$city_state_postcode[] = $address['state'];
+				}
+				if ( $address['postcode'] ) {
+					$city_state_postcode[] = $address['postcode'];
+				}
+				$rows[] = implode( ', ', $city_state_postcode );
+			}
+			
+			echo '<p class="guest-shipping--address">';
+			echo '<strong>Address:</strong> <br>';
+			echo implode( '<br>', $rows );
+			echo '</p>';
+		}
+	}
+	
 	// Hooks
 	
 	/**
@@ -283,7 +395,7 @@ class RS_WC_Guest_Shipping_Coupons_Store {
 			$billing_country,
 			'guest_address_'
 		);
-
+		
 		$is_saving = isset($_POST['guest_address_first_name']);
 		
 		// Make each field optional by default
@@ -318,7 +430,7 @@ class RS_WC_Guest_Shipping_Coupons_Store {
 		<div class="guest-shipping-container" style="display: none;">
 			
 			<h3 class="guest-shipping--title"><?php echo esc_html( $label ); ?></h3>
-		
+			
 			<div class="guest-shipping--description">
 				<?php
 				if ( $description ) {
@@ -336,7 +448,7 @@ class RS_WC_Guest_Shipping_Coupons_Store {
 				}
 				?>
 			</div>
-			
+		
 		</div>
 		<?php
 	}
@@ -439,30 +551,35 @@ class RS_WC_Guest_Shipping_Coupons_Store {
 		if ( ! $coupon ) return;
 		
 		// Get the guest address fields
-		$fields = WC()->checkout->get_checkout_fields( 'guest_address' );
+		$address = $this->get_guest_shipping_address_from_order( $order );
 		
 		$coupon_url = get_edit_post_link( $coupon->get_id() );
 		
 		echo '<div class="guest-address">';
 		echo '<h3>' . esc_html( $this->get_guest_shipping_title( $coupon ) ) . ' <span style="font-weight: 400;">(Coupon: <a href="'. esc_attr($coupon_url) .'">' . esc_html( $coupon->get_code() ) . '</a>)</span></h3>';
 		
-		// Output the fields
-		foreach ( $fields as $key => $field ) {
-			
-			// Get the field value
-			$value = get_post_meta( $order->get_id(), '_' . $key, true );
-			
-			// Output the field
-			?>
-			<p><strong><?php echo esc_html( $field['label'] ); ?>:</strong> <br><?php echo esc_html( $value ); ?></p>
-			<?php
-			
-		}
+		$this->display_shipping_address_simplified( $order, $address );
 		
 		echo '</div>';
 		
 	}
 	
+	public function display_order_guest_shipping_fields_on_product_receipt( $order ) {
+		// Get the guest shipping coupon
+		$coupon = $this->get_guest_shipping_coupon_from_order( $order );
+		if ( ! $coupon ) return;
+		
+		// Get the address
+		$address = $this->get_guest_shipping_address_from_order( $order );
+		if ( ! $address ) return;
+		
+		echo '<div class="guest-address">';
+		echo '<h2>' . esc_html( $this->get_guest_shipping_title( $coupon ) ) . '</h2>';
+		
+		$this->display_shipping_address_simplified( $order, $address );
+		
+		echo '</div>';
+	}
 	
 }
 
